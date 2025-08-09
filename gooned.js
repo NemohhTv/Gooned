@@ -40,6 +40,59 @@
   const restartBtn = document.getElementById('restartBtn');
   const revealNameEl = document.getElementById('revealName');
 
+  // Remote people.json integration (GitHub Pages) + ETag auto-reload
+  let LAST_ETAG = null;
+  const DATA_URL = '/data/people.json';
+
+  async function fetchPeopleETag() {
+    try {
+      const head = await fetch(DATA_URL, { method: 'HEAD', cache: 'no-cache' });
+      return head.headers.get('ETag') || null;
+    } catch (e) { return null; }
+  }
+
+  async function loadRemotePeople({ force=false } = {}) {
+    // Detect change via ETag, unless forced
+    const etag = await fetchPeopleETag();
+    if (!force && LAST_ETAG && etag && etag === LAST_ETAG) return false;
+
+    const res = await fetch(DATA_URL, { cache: 'no-cache' });
+    if (!res.ok) return false;
+
+    const data = await res.json().catch(()=>[]);
+    if (!Array.isArray(data)) return false;
+
+    // Map to the structure this game expects
+    PLAYLIST_ORIG = data.map(p => ({ src: p.image || p.src || '', answer: p.name || p.answer || '' }))
+                        .filter(x => x.src && x.answer);
+    PLAYLIST = PLAYLIST_ORIG.slice();
+    shuffle(PLAYLIST);
+    LAST_ETAG = etag || LAST_ETAG;
+    return true;
+  }
+
+  // Poll for backend updates every 60s and auto-reshuffle+restart
+  setInterval(async ()=>{
+    const changed = await loadRemotePeople({ force:false });
+    if (changed) {
+      round = 0; score = 0; zoom = maxZoomSteps; revealFull = false; finished = false;
+      loadRound(); updateTopbar();
+      messageEl.textContent = 'New entries added — shuffled!';
+    }
+  }, 60000);
+
+  // React to admin tab publish notification (instant)
+  window.addEventListener('storage', (e)=>{
+    if (e.key === 'people_updated') {
+      loadRemotePeople({ force:true }).then(()=>{
+        round = 0; score = 0; zoom = maxZoomSteps; revealFull = false; finished = false;
+        loadRound(); updateTopbar();
+        messageEl.textContent = 'Updated — shuffled!';
+      });
+    }
+  });
+
+
   // Settings
   const stepsSelect = document.getElementById('stepsSelect');
   const finalCropSelect = document.getElementById('finalCropSelect');
@@ -151,11 +204,24 @@
     if (typeof modal.showModal === 'function') modal.showModal();
   }
 
-  function nextRound(){
+  function nextRound(){ 
     round++;
     if (round >= PLAYLIST.length){
       finalBody.textContent = `You scored ${score} / ${PLAYLIST.length}.`;
-      if (typeof finalModal.showModal === 'function') finalModal.showModal();
+      if (typeof finalModal?.showModal === 'function') {
+        try { finalModal.showModal(); } catch {}
+        // After the modal is closed, reshuffle + restart
+        finalModal.addEventListener('close', ()=>{
+          shuffle(PLAYLIST);
+          round = 0; score = 0; zoom = maxZoomSteps; revealFull = false; finished = false;
+          loadRound(); updateTopbar();
+        }, { once: true });
+      } else {
+        // No dialog support: reshuffle immediately
+        shuffle(PLAYLIST);
+        round = 0; score = 0; zoom = maxZoomSteps; revealFull = false; finished = false;
+        loadRound(); updateTopbar();
+      }
       return;
     }
     loadRound();
@@ -195,7 +261,10 @@ if (correct){
     try{ await navigator.clipboard.writeText(text); messageEl.textContent = 'Result copied!'; }catch{ messageEl.textContent = text; }
   });
   shuffleBtn.addEventListener('click', ()=>{
-    PLAYLIST = PLAYLIST_ORIG.slice(); shuffle(PLAYLIST);
+    shuffle(PLAYLIST);
+    round = 0; score = 0; zoom = maxZoomSteps; revealFull = false; finished = false;
+    loadRound(); updateTopbar();
+  });
   round = 0; score = 0; zoom = MAX_ZOOM; revealFull = false; finished = false; draw(); updateHUD(); startGame();
     round = 0; score = 0; loadRound(); updateTopbar();
   });
@@ -215,5 +284,10 @@ if (correct){
   restartBtn?.addEventListener('click', ()=>{ round = 0; score = 0; loadRound(); updateTopbar(); });
 
   // Start
-  loadRound();
+  (async ()=>{
+    const changed = await loadRemotePeople({ force:true });
+    // even if remote fetch fails, proceed with current PLAYLIST
+    loadRound(); 
+    updateTopbar();
+  })();
 })();
