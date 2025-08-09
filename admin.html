@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Admin — Gooned (Local)</title>
+  <title>Admin — Gooned</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     /* Local-only admin styles */
@@ -27,11 +27,21 @@
   </style>
 </head>
 <body>
+
+  <header class="topbar">
+    <div class="topbar-grid">
+      <div class="topbar-spacer"></div>
+      <div class="topbar-brand">
+        <img src="assets/logo.png" alt="Gooned" class="logo" onerror="this.onerror=null;this.src='assets/icon.png';">
+      </div>
+      <div class="topbar-right">
+        <a class="back-link" href="./">Back to Game →</a>
+      </div>
+    </div>
+  </header>
+
   <main class="container">
-    <header>
-      <h1>Admin (Local)</h1>
-      <p class="help">Paste <strong>Imgur direct links</strong> (one per line), optionally set a caption, then click Add. Changes are saved to <code>localStorage</code> only.</p>
-    </header>
+    
 
     <section class="card">
       <form id="addForm" class="row" onsubmit="return false;">
