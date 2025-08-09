@@ -68,3 +68,15 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
 /* Login helpers */
 .muted{opacity:.8;font-size:.9em}
+
+/* --- Dropzone highlight (Firefox-friendly) --- */
+#dropZone {
+  transition: border-color 0.2s, background-color 0.2s;
+  border: 2px dashed #999;
+  padding: 16px;
+  border-radius: 8px;
+}
+#dropZone.dragover {
+  border: 3px dashed #4cafef;
+  background-color: rgba(76, 175, 239, 0.15);
+}

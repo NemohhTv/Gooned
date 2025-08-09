@@ -240,30 +240,57 @@ __queueRebuild(); }
     });
   }
 
-  // Drag & drop uploads
-  // Prevent default behavior on window to allow drop in Firefox
-  window.addEventListener('dragover', e=> e.preventDefault());
-  window.addEventListener('drop', e=> e.preventDefault());
-  ;['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); }));
-  ;['dragleave','dragend','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); }));
-  dropZone.addEventListener('drop', (e) => {
-    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
-    if (!files.length) return;
+  
+  // === Drag & Drop uploads (cross-browser with highlight) ===
+window.addEventListener('dragover', e => e.preventDefault(), { passive: false });
+window.addEventListener('drop', e => {
+  if (!(e.target && (e.target.id === 'dropZone' || (e.target.closest && e.target.closest('#dropZone'))))) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+if (dropZone) {
+  ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.add('dragover');
+  }, { passive: false }));
+
+  ['dragleave','dragend'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.remove('dragover');
+  }, { passive: false }));
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.remove('dragover');
+
+    const dt = e.dataTransfer;
+    if (!dt || !dt.files) return;
+
+    const files = Array.from(dt.files).filter(f => f.type && f.type.startsWith('image/'));
+    if (!files.length) {
+      alert('No image files detected.');
+      return;
+    }
+
     const queue = files.slice();
-    function next(){
-      const f = queue.shift(); if (!f){ refreshAdminList(); renderGallery(); alert('Added! Reload the game page to include new entries.'); return; }
+    const next = () => {
+      const f = queue.shift();
+      if (!f) { refreshAdminList(); renderGallery(); alert('Added! Reload the game page to see updates.'); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const arr = readEntries();
-        const base = f.name.replace(/\.[^.]+$/, '');
+        const base = (f.name || 'image').replace(/\.[^.]+$/, '');
         arr.push({ src: reader.result, answer: base, active: true });
         writeEntries(arr);
         next();
       };
+      reader.onerror = () => next();
       reader.readAsDataURL(f);
-    }
+    };
     next();
-  });
+  }, { passive: false });
+}
 
   // Add form
   addForm.addEventListener('submit', e => {
