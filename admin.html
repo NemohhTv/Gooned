@@ -61,14 +61,12 @@
         </div>
 
         <form id="addForm" class="row" onsubmit="return false;">
-          <input type="file" id="imageFile" accept="image/*"  multiple />
-          <input type="text" id="answerText" placeholder="Answer/caption (applies to all)" />
+          <textarea id="imageUrls" placeholder="Paste Imgur direct links (one per line). Example: https://i.imgur.com/abcd123.jpg" rows="4" style="width:100%"></textarea>
+          <input type="text" id="answerText" placeholder="Answer/caption (applies to all, optional)" />
           <button type="submit">Add</button>
         </form>
 
-        <div id="dropZone" class="dropzone" aria-label="Drop images here (optional)" style="opacity:.6;">
-          <strong>Drag & drop images here</strong>
-          <div class="muted">PNG / JPG / WebP</div>
+        
         </div>
 
         <div class="row" style="gap:8px; margin-top:8px;">

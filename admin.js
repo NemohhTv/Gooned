@@ -22,57 +22,56 @@ function __queueRebuild() {
 
   // Elements
   const addForm = document.getElementById('addForm');
-  const imageFile = document.getElementById('imageFile');
+  const imageUrls = document.getElementById('imageUrls');
   const answerText = document.getElementById('answerText');
   const exportBtn = document.getElementById('exportBtn');
   const clearBtn = document.getElementById('clearBtn');
   const adminList = document.getElementById('adminList');
   const dropZone = document.getElementById('dropZone');
   const galleryList = document.getElementById('galleryList');
-// === Netlify Blobs uploader ===
-async function uploadToNetlifyBlob(file){
-  const fd = new FormData();
-  fd.append("file", file, file.name || "image");
-  const res = await fetch("/.netlify/functions/upload-image", { method: "POST", body: fd });
-  if (!res.ok){
-    const t = await res.text().catch(()=>'');
-    throw new Error("Upload failed: " + (t || res.status));
+
+// === Imgur URL helpers ===
+function normalizeImgurUrl(u){
+  if (!u) return '';
+  u = String(u).trim();
+  if (/^https?:\/\/i\.imgur\.com\//i.test(u)) return u; // direct
+  let m = u.match(/^https?:\/\/imgur\.com\/([A-Za-z0-9]+)(?:\.(jpg|png|webp|jpeg|gif))?$/i);
+  if (m){
+    const ext = (m[2] || 'jpg').toLowerCase();
+    return `https://i.imgur.com/${m[1]}.${ext}`;
   }
-  const j = await res.json();
-  if (!j || !j.url) throw new Error("Invalid upload response");
-  return j.url;
+  m = u.match(/^([A-Za-z0-9]+)$/);
+  if (m){
+    return `https://i.imgur.com/${m[1]}.jpg`;
+  }
+  if (/imgur\.com\/(a|gallery)\//i.test(u)){
+    return '';
+  }
+  return u;
+}
+
+function addByUrls(multiline, caption){
+  const lines = (multiline || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if (!lines.length){ alert('Paste one or more Imgur URLs.'); return; }
+  const entries = readEntries();
+  const useCaption = (caption || '').trim();
+  let added = 0;
+  lines.forEach((line, idx)=>{
+    const url = normalizeImgurUrl(line);
+    if (!url){ console.warn('Skipping non-direct Imgur link:', line); return; }
+    const base = useCaption ? (lines.length>1 ? `${useCaption} ${idx+1}` : useCaption) : url.split('/').pop().split('.')[0];
+    entries.push({ src: url, answer: base, active: true });
+    added++;
+  });
+  if (!added){ alert('No valid Imgur direct links found.'); return; }
+  writeEntries(entries);
+  refreshAdminList();
+  renderGallery();
+  alert('Added! The game will reshuffle.');
 }
 
 
-  // === Multi-file selection support ===
-  imageFile.addEventListener('change', () => {
-    // If no manual caption, we won't block; per-file base name is used.
-    // You can type a caption and it will be applied to all files (suffix with index).
-  });
-
-  function addFiles(files, caption){
-    const imgs = Array.from(files).filter(f => f && f.type && f.type.startsWith('image/'));
-    if (!imgs.length){ alert('No image files selected.'); return; }
-    const useCaption = (caption || '').trim();
-    (async ()=>{
-      try{
-        const entries = readEntries();
-        for (let i=0;i<imgs.length;i++){
-          const f = imgs[i];
-          const url = await uploadToNetlifyBlob(f);
-          const base = useCaption ? (imgs.length>1 ? `${useCaption} ${i+1}` : useCaption)
-                                  : (f.name || 'image').replace(/\.[^.]+$/, '');
-          entries.push({ src: url, answer: base, active: true });
-        }
-        writeEntries(entries);
-        refreshAdminList();
-        renderGallery();
-        alert('Uploaded and added! The game will reshuffle.');
-      }catch(err){
-        console.error(err);
-        alert('Upload failed: ' + err.message);
-      }
-    })();
+// Upload removed in Imgur URL mode)();
   }
 
     const useCaption = (caption || '').trim();
@@ -307,61 +306,17 @@ __queueRebuild(); }
   }
 
   
-  // === Drag & Drop uploads (cross-browser with highlight) ===
-window.addEventListener('dragover', e => e.preventDefault(), { passive: false });
-window.addEventListener('drop', e => {
-  if (!(e.target && (e.target.id === 'dropZone' || (e.target.closest && e.target.closest('#dropZone'))))) {
-    e.preventDefault();
-  }
-}, { passive: false });
-
-if (dropZone) {
-  ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault(); e.stopPropagation();
-    dropZone.classList.add('dragover');
-  }, { passive: false }));
-
-  ['dragleave','dragend'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault(); e.stopPropagation();
-    dropZone.classList.remove('dragover');
-  }, { passive: false }));
-
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault(); e.stopPropagation();
-    dropZone.classList.remove('dragover');
-
-    const dt = e.dataTransfer;
-    if (!dt || !dt.files) return;
-
-    const files = Array.from(dt.files).filter(f => f.type && f.type.startsWith('image/'));
-    if (!files.length) {
-      alert('No image files detected.');
-      return;
-    }
-
-    const queue = files.slice();
-    const next = () => {
-      const f = queue.shift();
-      if (!f) { refreshAdminList(); renderGallery(); /* using multi-select now; DnD optional */ return; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arr = readEntries();
-        const base = (f.name || 'image').replace(/\.[^.]+$/, '');
-        arr.push({ src: reader.result, answer: base, active: true });
-        writeEntries(arr);
-        next();
-      };
-      reader.onerror = () => next();
-      reader.readAsDataURL(f);
-    };
-    next();
-  }, { passive: false });
-}
-
+  // Upload removed in Imgur URL mode
   // Add form
   addForm.addEventListener('submit', e => {
     e.preventDefault();
-    const files = imageFile.files;
+    const urls = imageUrls ? imageUrls.value : '';
+    const answer = (answerText.value || '').trim();
+    addByUrls(urls, answer);
+    if (imageUrls) imageUrls.value = '';
+    answerText.value = '';
+  });
+const files = imageFile.files;
     const answer = (answerText.value || '').trim();
     if (!files || !files.length){ alert('Please select one or more images.'); return; }
     addFiles(files, answer);
@@ -457,4 +412,18 @@ __queueRebuild(); }
       });
     });
   };
+})();
+
+
+// Bulk remove all entries (Imgur URL mode)
+(() => {
+  const bulkRemoveBtn = document.getElementById('bulkRemoveBtn');
+  if (!bulkRemoveBtn) return;
+  bulkRemoveBtn.addEventListener('click', () => {
+    if (!confirm('Remove ALL entries? This cannot be undone.')) return;
+    writeEntries([]);
+    refreshAdminList();
+    renderGallery();
+    alert('All entries removed. The game will reshuffle.');
+  });
 })();
