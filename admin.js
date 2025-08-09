@@ -1,4 +1,20 @@
 
+// Netlify rebuild (debounced) after save
+let __rebuildTimer;
+async function __triggerSiteRebuild() {
+  try {
+    await fetch('/.netlify/functions/trigger-build', { method: 'POST' });
+    console.log('[Netlify] rebuild triggered');
+  } catch (e) {
+    console.error('[Netlify] rebuild failed', e);
+  }
+}
+function __queueRebuild() {
+  clearTimeout(__rebuildTimer);
+  __rebuildTimer = setTimeout(__triggerSiteRebuild, 1200);
+}
+
+
 (()=>{
   const ADMIN_KEY = 'GOONED_CUSTOM';
   const SUBMIT_KEY = 'GOONED_SUBMISSIONS';
@@ -31,11 +47,13 @@
 
   // Storage helpers
   function readEntries(){ try { return JSON.parse(localStorage.getItem(ADMIN_KEY) || '[]'); } catch { return []; } }
-  function writeEntries(arr){ localStorage.setItem(ADMIN_KEY, JSON.stringify(arr)); }
+  function writeEntries(arr){ localStorage.setItem(ADMIN_KEY, JSON.stringify(arr));
+__queueRebuild(); }
   function normalizeEntry(e){ return { src: e.src, answer: e.answer, active: (e.active !== false) }; }
 
   function readSubmissions(){ try { return JSON.parse(localStorage.getItem(SUBMIT_KEY) || '[]'); } catch { return []; } }
-  function writeSubmissions(arr){ localStorage.setItem(SUBMIT_KEY, JSON.stringify(arr)); }
+  function writeSubmissions(arr){ localStorage.setItem(SUBMIT_KEY, JSON.stringify(arr));
+__queueRebuild(); }
 
   // UI helpers
   function clearSelection(){ selectedAdminIdxs.clear(); updateBulkBar(); }
@@ -230,7 +248,7 @@
     if (!files.length) return;
     const queue = files.slice();
     function next(){
-      const f = queue.shift(); if (!f){ refreshAdminList(); renderGallery(); alert('Added! The live game will auto-refresh and shuffle to include your new entry.'); return; }
+      const f = queue.shift(); if (!f){ refreshAdminList(); renderGallery(); alert('Added! Reload the game page to include new entries.'); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const arr = readEntries();
@@ -257,7 +275,7 @@
       writeEntries(arr);
       imageFile.value = ''; answerText.value = '';
       refreshAdminList(); renderGallery();
-      alert('Added! The live game will auto-refresh and shuffle to include your new entry.');
+      alert('Added! Reload the game page to include new entries.');
     };
     reader.readAsDataURL(file);
   });
@@ -271,7 +289,8 @@
   });
 
   clearBtn.addEventListener('click', () => {
-    if (confirm('Remove all admin entries?')){ localStorage.setItem(ADMIN_KEY, '[]'); refreshAdminList(); renderGallery(); }
+    if (confirm('Remove all admin entries?')){ localStorage.setItem(ADMIN_KEY, '[]');
+__queueRebuild(); refreshAdminList(); renderGallery(); }
   });
 
   // Init
@@ -290,7 +309,8 @@
   function readJSON(key, fallback){
     try { return JSON.parse(localStorage.getItem(key)||'') || fallback; } catch { return fallback; }
   }
-  function writeJSON(key, v){ localStorage.setItem(key, JSON.stringify(v)); }
+  function writeJSON(key, v){ localStorage.setItem(key, JSON.stringify(v));
+__queueRebuild(); }
 
   function approveSubmission(idx){
     const subs = readJSON(SUBMIT_KEY, []);

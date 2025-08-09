@@ -219,7 +219,7 @@ if (correct){
   });
 
   if ('ResizeObserver' in window){ const ro = new ResizeObserver(()=> draw()); ro.observe(canvas); } else { window.addEventListener('resize', draw); }
-  restartBtn?.addEventListener('click', ()=>{ rebuildPlaylist(); shuffle(PLAYLIST); round = 0; score = 0; finished = false; revealFull = false; zoom = MAX_ZOOM; loadRound(); updateTopbar(); draw(); updateHUD(); });
+  restartBtn?.addEventListener('click', ()=>{ round = 0; score = 0; loadRound(); updateTopbar(); });
 
   // Dynamic updates: if admin adds/removes entries in another tab, rebuild & shuffle
   window.addEventListener('storage', (e)=>{

@@ -1,3 +1,19 @@
+
+// Netlify rebuild (debounced) after save
+let __rebuildTimer;
+async function __triggerSiteRebuild() {
+  try {
+    await fetch('/.netlify/functions/trigger-build', { method: 'POST' });
+    console.log('[Netlify] rebuild triggered');
+  } catch (e) {
+    console.error('[Netlify] rebuild failed', e);
+  }
+}
+function __queueRebuild() {
+  clearTimeout(__rebuildTimer);
+  __rebuildTimer = setTimeout(__triggerSiteRebuild, 1200);
+}
+
 // admin_gate.js — UI gate between login and admin app
 (()=>{
   const loginPanel = document.getElementById('loginPanel');
