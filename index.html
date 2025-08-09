@@ -16,7 +16,13 @@
     <div class="game card">
       <div class="topbar">
         <div id="roundInfo" class="badge">Round 1 / 1</div>
-        <div class="badge-group">
+        
+        <div id="shuffleBtnContainer" style="flex: 0 0 auto; display: flex; align-items: center; justify-content: center;">
+          <button id="shuffleBtn" title="Shuffle the order" style="margin: 0 10px; padding: 4px 10px; border: none; background: rgba(0,0,0,0.7); color: #fff; border-radius: 4px; cursor: pointer;">
+            Shuffle
+          </button>
+        </div>
+<div class="badge-group">
           <div id="scoreInfo" class="badge">Score 0</div>
           <div id="timer" class="badge timer">20s</div>
         </div>
@@ -40,8 +46,6 @@
       <div class="actions row">
         <button id="revealBtn" title="Reveal the image">Reveal</button>
         <button id="nextBtn" title="Next round" disabled>Next</button>
-        <button id="shuffleBtn" title="Shuffle the order">Shuffle</button>
-        <button id="shareBtn" title="Copy your score">Share</button>
       </div>
     </div>
 
@@ -63,6 +67,7 @@
         </label>
         <label>Round timer:
           <select id="timerSelect">
+            <option value="infinite">∞ Infinite</option>
             <option value="15">15s</option>
             <option value="20" selected>20s</option>
             <option value="30">30s</option>

@@ -16,7 +16,7 @@
   // --- Injected: remote people.json loader + ETag watch ---
   const DATA_URL = '/data/people.json';
   let LAST_ETAG = null;
-  async function loadRemotePeople(force=false){
+  async function loadRemotePeople(force=false, doShuffle=false){
     try{
       const res = await fetch(DATA_URL, {cache:'no-cache'});
       if(!res.ok) return;
@@ -42,17 +42,17 @@
       const r = await fetch(DATA_URL, {method:'HEAD', cache:'no-cache'});
       const etag = r.headers.get('ETag') || null;
       if (LAST_ETAG && etag && etag !== LAST_ETAG){
-        await loadRemotePeople(true);
+        await loadRemotePeople(true, true);
       }
       LAST_ETAG = etag || LAST_ETAG;
     }catch(e){ console.warn('poll updates failed', e); }
   }
   document.addEventListener('DOMContentLoaded', ()=>{
-    loadRemotePeople(true);
+    loadRemotePeople(true, true);
     setInterval(pollPeopleUpdates, 60000);
   });
   window.addEventListener('storage', (e)=>{
-    if (e.key === 'people_updated') loadRemotePeople(true);
+    if (e.key === 'people_updated') loadRemotePeople(true, true);
   });
   // --- end injected ---
 // Defaults
@@ -127,14 +127,26 @@
   function shuffle(array){ for (let i=array.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [array[i],array[j]]=[array[j],array[i]]; } }
 
   function startTimer(){
-    stopTimer(); timeLeft = ROUND_SECONDS; renderTimer();
+    stopTimer();
+    if (ROUND_SECONDS == null) { // infinite mode
+      timeLeft = Infinity;
+      renderTimer();
+      return; // no interval
+    }
+    timeLeft = ROUND_SECONDS; renderTimer();
     timerId = setInterval(()=>{
       timeLeft--; renderTimer();
       if (timeLeft <= 0){ stopTimer(); if (!finished){ zoom = 1; draw(); updateHUD(); endImage(false, '(Time up)'); } }
     },1000);
   }
   function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } }
-  function renderTimer(){ timerEl.textContent = `${timeLeft}s`; }
+  function renderTimer(){
+    if (ROUND_SECONDS == null || !isFinite(timeLeft)) {
+      timerEl.textContent = '∞';
+    } else {
+      timerEl.textContent = `${timeLeft}s`;
+    }
+  }
 
   function loadRound(){
     // keep current PLAYLIST order; do not reset here
