@@ -23,6 +23,68 @@ function __queueRebuild() {
   // Elements
   const addForm = document.getElementById('addForm');
   const imageUrls = document.getElementById('imageUrls');
+
+// === Imgur URL validation ===
+const urlValidation = document.getElementById('urlValidation');
+
+function classifyImgurLine(line){
+  const raw = (line||'').trim();
+  if (!raw) return { valid:false, reason:'empty' };
+  if (/imgur\.com\/(a|gallery)\//i.test(raw)) return { valid:false, reason:'album_or_gallery' };
+  if (/^https?:\/\/i\.imgur\.com\/[A-Za-z0-9]+\.(jpg|jpeg|png|webp|gif)$/i.test(raw)) return { valid:true, url:raw };
+  let m = raw.match(/^https?:\/\/imgur\.com\/([A-Za-z0-9]+)(?:\.(jpg|jpeg|png|webp|gif))?$/i);
+  if (m) return { valid:true, url:`https://i.imgur.com/${m[1]}.${(m[2]||'jpg').toLowerCase()}` };
+  m = raw.match(/^([A-Za-z0-9]+)$/);
+  if (m) return { valid:true, url:`https://i.imgur.com/${m[1]}.jpg` };
+  if (/^https?:\/\//i.test(raw)) return { valid:false, reason:'non_imgur_or_not_direct' };
+  return { valid:false, reason:'unrecognized' };
+}
+
+function validateImgurList(multiline){
+  const lines = (multiline||'').split(/\r?\n/).map(s=>s.trim());
+  const valid = [];
+  const invalid = [];
+  lines.forEach((ln, idx)=>{
+    if (!ln) return;
+    const res = classifyImgurLine(ln);
+    if (res.valid) valid.push({ line: idx+1, url: res.url, input: ln });
+    else invalid.push({ line: idx+1, input: ln, reason: res.reason });
+  });
+  return { valid, invalid };
+}
+
+function renderValidation(){
+  if (!urlValidation || !imageUrls) return;
+  const { valid, invalid } = validateImgurList(imageUrls.value);
+  if (!valid.length && !invalid.length){
+    urlValidation.innerHTML = '';
+    return;
+  }
+  const msgs = [];
+  if (valid.length){
+    msgs.push(`<div>✅ Valid: <strong>${valid.length}</strong></div>`);
+  }
+  if (invalid.length){
+    const list = invalid.slice(0,6).map(it=>{
+      let reason = it.reason;
+      if (reason==='album_or_gallery') reason = 'album/gallery links not supported';
+      if (reason==='non_imgur_or_not_direct') reason = 'not a direct Imgur URL';
+      if (reason==='unrecognized') reason = 'unrecognized format';
+      if (reason==='empty') reason = 'empty line';
+      return `<li>Line ${it.line}: <code>${it.input.replace(/</g,'&lt;')}</code> — ${reason}</li>`;
+    }).join('');
+    msgs.push(`<div>⚠️ Invalid: <strong>${invalid.length}</strong></div><ul style="margin:.25em 0 0 .75em">${list}${invalid.length>6?'<li>…</li>':''}</ul>`);
+  }
+  urlValidation.innerHTML = msgs.join('');
+}
+
+if (imageUrls){
+  imageUrls.addEventListener('input', renderValidation);
+  // initial render if there is text
+  if (imageUrls.value) renderValidation();
+}
+
+
   const answerText = document.getElementById('answerText');
   const exportBtn = document.getElementById('exportBtn');
   const clearBtn = document.getElementById('clearBtn');
@@ -65,10 +127,16 @@ function addByUrls(multiline, caption){
   });
   if (!added){ alert('No valid Imgur direct links found.'); return; }
   writeEntries(entries);
-  refreshAdminList();
-  renderGallery();
-  alert('Added! The game will reshuffle.');
-}
+    __queueRebuild();
+    refreshAdminList();
+    renderGallery();
+    // Focus last added item's caption for inline rename
+    try{
+      const caps = document.querySelectorAll('.gallery-item .caption.editable');
+      caps && caps[caps.length-1] && caps[caps.length-1].focus();
+    }catch{}
+    alert('Added! Site is updating and the game will reshuffle.');
+    }
 
 
 // Upload removed in Imgur URL mode)();
@@ -84,7 +152,7 @@ function addByUrls(multiline, caption){
         const arr = readEntries();
         const base = (useCaption ? (imgs.length > 1 ? `${useCaption} ${i}` : useCaption) : (f.name || 'image').replace(/\.[^.]+$/, ''));
         arr.push({ src: reader.result, answer: base, active: true });
-        writeEntries(arr);
+        \1 __queueRebuild();
         next();
       };
       reader.onerror = () => next();
@@ -312,9 +380,19 @@ __queueRebuild(); }
     e.preventDefault();
     const urls = imageUrls ? imageUrls.value : '';
     const answer = (answerText.value || '').trim();
-    addByUrls(urls, answer);
+    const { valid, invalid } = validateImgurList(urls);
+    if (!valid.length){
+      alert('No valid Imgur direct links detected. Please paste direct image URLs like https://i.imgur.com/abcd123.jpg');
+      renderValidation();
+      return;
+    }
+    // Build a normalized list from the validator to ensure consistency
+    const normalized = valid.map(v => v.url).join('
+');
+    addByUrls(normalized, answer);
     if (imageUrls) imageUrls.value = '';
     answerText.value = '';
+    renderValidation();
   });
 const files = imageFile.files;
     const answer = (answerText.value || '').trim();

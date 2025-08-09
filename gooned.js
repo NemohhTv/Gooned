@@ -75,26 +75,41 @@
   function writeSubmissions(arr){ localStorage.setItem(SUBMIT_KEY, JSON.stringify(arr)); }
   const userSubmitForm = document.getElementById('userSubmitForm');
   if (userSubmitForm){
-    const userImageFile = document.getElementById('userImageFile');
-    const userAnswerText = document.getElementById('userAnswerText');
-    const userSubmitMsg = document.getElementById('userSubmitMsg');
-    userSubmitForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const file = userImageFile.files[0];
-      const answer = (userAnswerText.value || '').trim();
-      if (!file || !answer) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arr = readSubmissions();
-        arr.push({ src: reader.result, answer, when: Date.now() });
-        writeSubmissions(arr);
-        userImageFile.value = ''; userAnswerText.value = '';
-        userSubmitMsg.textContent = 'Thanks! Your submission has been queued for admin approval.';
-        setTimeout(() => userSubmitMsg.textContent = '', 4000);
-      };
-      reader.readAsDataURL(file);
-    });
+    
+function normalizeImgurUrl(u){
+  if (!u) return '';
+  u = String(u).trim();
+  if (/^https?:\/\/i\.imgur\.com\/[A-Za-z0-9]+\.(jpg|jpeg|png|webp|gif)$/i.test(u)) return u;
+  let m = u.match(/^https?:\/\/imgur\.com\/([A-Za-z0-9]+)(?:\.(jpg|jpeg|png|webp|gif))?$/i);
+  if (m) return `https://i.imgur.com/${m[1]}.${(m[2]||'jpg').toLowerCase()}`;
+  m = u.match(/^([A-Za-z0-9]+)$/);
+  if (m) return `https://i.imgur.com/${m[1]}.jpg`;
+  return '';
+}
+
+const userImageUrl = document.getElementById('userImageUrl');
+const userAnswerText = document.getElementById('userAnswerText');
+const userSubmitMsg = document.getElementById('userSubmitMsg');
+
+userSubmitForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const rawUrl = (userImageUrl.value || '').trim();
+  const answer = (userAnswerText.value || '').trim();
+  if (!rawUrl || !answer) return;
+  const url = normalizeImgurUrl(rawUrl);
+  if (!url){
+    userSubmitMsg.textContent = 'Please paste a direct Imgur image URL like https://i.imgur.com/abcd123.jpg';
+    setTimeout(()=> userSubmitMsg.textContent = '', 4000);
+    return;
   }
+  const arr = readSubmissions();
+  arr.push({ src: url, answer, when: Date.now() });
+  writeSubmissions(arr);
+  userImageUrl.value = ''; userAnswerText.value = '';
+  userSubmitMsg.textContent = 'Thanks! Your submission has been queued for admin approval.';
+  setTimeout(() => userSubmitMsg.textContent = '', 4000);
+});
+
 
   // State
   let round = 0, score = 0, zoom = maxZoomSteps, tries = 0, finished = false;

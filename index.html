@@ -76,15 +76,15 @@
     <section class="card" id="userSubmitCard">
       <h3>Submit an Image</h3>
       <form class="settings-grid" id="userSubmitForm">
-        <label>Image
-          <input id="userImageFile" type="file" accept="image/*" required />
+        <label>Imgur image URL
+          <input id="userImageUrl" type="url" placeholder="https://i.imgur.com/abcd123.jpg" required />
+          <small class="help">Paste a direct Imgur link (ends in .jpg/.png/.webp). Albums/galleries are not supported.</small>
         </label>
         <label>Name (winning answer)
           <input id="userAnswerText" type="text" placeholder="e.g., Emma Watson" required />
         </label>
         <button type="submit">Submit</button>
       </form>
-      <p class="help">Your submission will be sent to the Admin queue for approval before it appears in the live game.</p>
       <div id="userSubmitMsg" class="help"></div>
     </section>
 

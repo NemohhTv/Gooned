@@ -26,7 +26,8 @@
           <button id="loginBtn">Login</button>
           <button id="createAdminBtn" type="button">Create Admin</button>
         </div>
-      </form>
+        <div id="urlValidation" class="help" style="margin:.5em 0; font-size:.9em;"></div>
+        </form>
     </section>
 
     <!-- Admin App -->
@@ -60,10 +61,12 @@
           </div>
         </div>
 
+        <h3>Add Imgur URL</h3>
         <form id="addForm" class="row" onsubmit="return false;">
-          <textarea id="imageUrls" placeholder="Paste Imgur direct links (one per line). Example: https://i.imgur.com/abcd123.jpg" rows="4" style="width:100%"></textarea>
+          <textarea id="imageUrls" placeholder="Paste Imgur direct links (one per line). Example: https://i.imgur.com/abcd123.jpg" rows="6" style="width:100%"></textarea>
           <input type="text" id="answerText" placeholder="Answer/caption (applies to all, optional)" />
           <button type="submit">Add</button>
+          <div id="urlValidation" class="help" style="margin:.5em 0; font-size:.9em;"></div>
         </form>
 
         
