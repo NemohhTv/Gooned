@@ -230,7 +230,7 @@
     if (!files.length) return;
     const queue = files.slice();
     function next(){
-      const f = queue.shift(); if (!f){ refreshAdminList(); renderGallery(); alert('Added! Reload the game page to include new entries.'); return; }
+      const f = queue.shift(); if (!f){ refreshAdminList(); renderGallery(); alert('Added! The live game will auto-refresh and shuffle to include your new entry.'); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const arr = readEntries();
@@ -257,7 +257,7 @@
       writeEntries(arr);
       imageFile.value = ''; answerText.value = '';
       refreshAdminList(); renderGallery();
-      alert('Added! Reload the game page to include new entries.');
+      alert('Added! The live game will auto-refresh and shuffle to include your new entry.');
     };
     reader.readAsDataURL(file);
   });
@@ -279,4 +279,75 @@
   refreshAdminList();
   renderGallery();
   renderSubmissions();
+})();
+
+
+// === Moderation: approve submission -> moves into GOONED_CUSTOM (active: true) ===
+(function(){
+  const ADMIN_KEY = 'GOONED_CUSTOM';
+  const SUBMIT_KEY = 'GOONED_SUBMISSIONS';
+
+  function readJSON(key, fallback){
+    try { return JSON.parse(localStorage.getItem(key)||'') || fallback; } catch { return fallback; }
+  }
+  function writeJSON(key, v){ localStorage.setItem(key, JSON.stringify(v)); }
+
+  function approveSubmission(idx){
+    const subs = readJSON(SUBMIT_KEY, []);
+    const item = subs[idx];
+    if (!item){ alert('Missing submission'); return; }
+    const entries = readJSON(ADMIN_KEY, []);
+    entries.push({ src: item.src, answer: item.answer || '', active: true, approved: true });
+    writeJSON(ADMIN_KEY, entries);
+    subs.splice(idx, 1);
+    writeJSON(SUBMIT_KEY, subs);
+    alert('Approved and added to rotation.');
+    if (window.refreshAdminList) window.refreshAdminList();
+    if (window.renderSubmissions) window.renderSubmissions();
+    if (window.renderGallery) window.renderGallery();
+  }
+
+  // Patch the existing renderSubmissions UI (if present) to include Approve buttons
+  const origRenderSubs = window.renderSubmissions;
+  window.renderSubmissions = function(){
+    if (origRenderSubs) origRenderSubs();
+    const wrap = document.getElementById('submissionsList') || document.getElementById('submissions');
+    if (!wrap) return;
+    const cards = wrap.querySelectorAll('[data-sub-index]');
+    if (cards.length === 0){
+      // Try to construct simple cards if not present
+      const subs = readJSON(SUBMIT_KEY, []);
+      wrap.innerHTML = '';
+      subs.forEach((s, i)=>{
+        const div = document.createElement('div');
+        div.className = 'card row';
+        div.dataset.subIndex = i;
+        div.innerHTML = `
+          <div class="row" style="gap:10px;align-items:center;">
+            <img src="${s.src}" alt="" style="width:100px;border-radius:8px" />
+            <div class="col" style="flex:1;">
+              <strong>${(s.answer||'').replace(/</g,'&lt;')}</strong>
+              <div class="muted">${new Date(s.time||Date.now()).toLocaleString()}</div>
+            </div>
+            <div class="row" style="gap:8px;">
+              <button data-approve="${i}">Approve</button>
+              <button data-delete="${i}">Delete</button>
+            </div>
+          </div>`;
+        wrap.appendChild(div);
+      });
+    }
+    wrap.querySelectorAll('button[data-approve]').forEach(btn=>{
+      btn.addEventListener('click', ()=>approveSubmission(parseInt(btn.dataset.approve,10)));
+    });
+    wrap.querySelectorAll('button[data-delete]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.dataset.delete,10);
+        const subs = readJSON(SUBMIT_KEY, []);
+        subs.splice(idx,1);
+        writeJSON(SUBMIT_KEY, subs);
+        window.renderSubmissions && window.renderSubmissions();
+      });
+    });
+  };
 })();

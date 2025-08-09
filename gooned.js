@@ -7,8 +7,15 @@
     try { return (JSON.parse(localStorage.getItem(ADMIN_KEY)||'[]')||[]).filter(e=>e && (e.active!==false)); }
     catch { return []; }
   }
-  let PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries());
+  let PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries()); // submissions are NOT auto-included (moderated only)
   let PLAYLIST = PLAYLIST_ORIG.slice();
+
+  function rebuildPlaylist(){
+    PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries());
+    PLAYLIST = PLAYLIST_ORIG.slice();
+  }
+  // Shuffle playlist at game start
+  shuffle(PLAYLIST);
 
   // Defaults
   let maxZoomSteps = 5;   // 5 or 6
@@ -93,7 +100,7 @@
 
   function loadRound(){
     // refresh playlist with any new admin entries
-    PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries());
+    PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries()); // submissions are NOT auto-included (moderated only)
     PLAYLIST = PLAYLIST_ORIG.slice();
 
     finished = false; tries = 0; zoom = maxZoomSteps; revealFull = false;
@@ -140,7 +147,7 @@
   }
 
   function endImage(win, extra=''){
-    finished = true; stopTimer();
+    revealFull = true; zoom = 1; draw(); finished = true; stopTimer();
     guessInput.disabled = true; document.getElementById('guessButton').disabled = true; nextBtn.disabled = false;
     const answer = PLAYLIST[round].answer;
     const base = win ? `🎉 Correct in ${tries} ${tries===1?'try':'tries'}!` : `❌ Out of guesses! The answer was: ${answer}`;
@@ -162,23 +169,43 @@
   // Events
   guessForm.addEventListener('submit',(e)=>{
     e.preventDefault(); if (finished) return;
-    const userGuess = normalize(guessInput.value); if (!userGuess) return;
+    const userGuess = normalize(guessInput.value);
+    if (!userGuess){
+      // Empty guess: zoom out further instead of requiring text
+      zoom = Math.max(1, zoom - 1);
+      draw(); updateHUD();
+      if (zoom === 1) endImage(false); else messageEl.textContent = 'Zooming out…';
+      return;
+    }
     guessInput.value=''; tries++;
     const correct = userGuess === normalize(PLAYLIST[round].answer);
+// Always show full image after a guess
+revealFull = true; draw();
+if (correct){
+  score++;
+  if (revealNameEl) revealNameEl.textContent = PLAYLIST[round].answer;
+  endImage(true); updateTopbar(); return;
+} else {
+  if (revealNameEl) revealNameEl.textContent = PLAYLIST[round].answer;
+  endImage(false); updateTopbar(); return;
+}
+
     if (correct){ score++; revealFull = true; draw(); if(revealNameEl) revealNameEl.textContent = PLAYLIST[round].answer; endImage(true); updateTopbar(); return; }
-    zoom = Math.max(1, zoom - 1); draw(); updateHUD();
-    if (zoom === 1) endImage(false); else messageEl.textContent = 'Nope. Zooming out…';
+    // zoom-out on incorrect disabled; end round immediately
   });
-  revealBtn.addEventListener('click', ()=>{ if (!finished){ zoom = 1; draw(); updateHUD(); endImage(false); }});
+  revealBtn.addEventListener('click', ()=>{ if (!finished){ revealFull = true; zoom = 1; draw(); updateHUD(); endImage(false); }});
   nextBtn.addEventListener('click', ()=> nextRound());
   shareBtn.addEventListener('click', async ()=>{
     const text = `GOONED — Score: ${score} / ${PLAYLIST.length}`;
     try{ await navigator.clipboard.writeText(text); messageEl.textContent = 'Result copied!'; }catch{ messageEl.textContent = text; }
   });
   shuffleBtn.addEventListener('click', ()=>{
-    PLAYLIST = PLAYLIST_ORIG.slice(); shuffle(PLAYLIST);
-    round = 0; score = 0; loadRound(); updateTopbar();
-  });
+  rebuildPlaylist();
+  shuffle(PLAYLIST);
+  round = 0; score = 0; finished = false; revealFull = false;
+  zoom = MAX_ZOOM; draw(); updateHUD();
+  loadRound(); updateTopbar();
+});
 
   // Settings apply
   applyBtn.addEventListener('click', ()=>{
@@ -192,7 +219,19 @@
   });
 
   if ('ResizeObserver' in window){ const ro = new ResizeObserver(()=> draw()); ro.observe(canvas); } else { window.addEventListener('resize', draw); }
-  restartBtn?.addEventListener('click', ()=>{ round = 0; score = 0; loadRound(); updateTopbar(); });
+  restartBtn?.addEventListener('click', ()=>{ rebuildPlaylist(); shuffle(PLAYLIST); round = 0; score = 0; finished = false; revealFull = false; zoom = MAX_ZOOM; loadRound(); updateTopbar(); draw(); updateHUD(); });
+
+  // Dynamic updates: if admin adds/removes entries in another tab, rebuild & shuffle
+  window.addEventListener('storage', (e)=>{
+    if (!e) return;
+    if (e.key === 'GOONED_CUSTOM'){ 
+      rebuildPlaylist(); 
+      shuffle(PLAYLIST); 
+      round = 0; score = 0; finished = false; revealFull = false; 
+      zoom = MAX_ZOOM; 
+      loadRound(); updateTopbar(); draw(); updateHUD();
+    }
+  });
 
   // Start
   loadRound();

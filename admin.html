@@ -13,59 +13,93 @@
   </header>
 
   <main class="app">
-    <div class="card" id="adminCard">
-      <h3>Add New Submission</h3>
-
-      <div id="bulkBar" class="bulkbar" style="display:none">
-        <div class="row" style="justify-content:space-between;width:100%">
-          <div class="row">
-            <label class="chk"><input type="checkbox" id="selectAllAdmin"> Select all</label>
-            <button id="clearSelBtn" type="button">Clear</button>
-          </div>
-          <div class="row">
-            <button id="bulkListBtn" type="button">List</button>
-            <button id="bulkUnlistBtn" type="button">Unlist</button>
-            <button id="bulkDeleteBtn" type="button">Delete</button>
-          </div>
+    <!-- Login/Create Admin Panel -->
+    <section id="loginPanel" class="card" style="display:none;">
+      <h2>Admin Login</h2>
+      <p id="loginHelp" class="muted"></p>
+      <form id="loginForm" class="col" onsubmit="return false;">
+        <label class="row"><span>Password</span>
+          <input type="password" id="adminPassword" placeholder="Enter password" required />
+        </label>
+        <label class="row chk"><input type="checkbox" id="rememberMe" /> Remember me</label>
+        <div class="row">
+          <button id="loginBtn">Login</button>
+          <button id="createAdminBtn" type="button">Create Admin</button>
         </div>
-      </div>
-
-      <form class="settings-grid" id="addForm">
-        <label>Image
-          <input id="imageFile" type="file" accept="image/*" required />
-        </label>
-        <label>Winning answer
-          <input id="answerText" type="text" placeholder="e.g., Emma Watson" required />
-        </label>
-        <button type="submit">Add</button>
       </form>
-
-      <div id="dropZone" class="dropzone" aria-label="Drop images here">
-        <strong>Drag & drop images here</strong>
-        <span>(filenames will be used as initial names; you can rename by double‑clicking)</span>
-      </div>
-
-      <div class="row" style="margin-top:10px">
-        <button id="exportBtn">Export All (JSON)</button>
-        <button id="clearBtn">Clear Admin Entries</button>
-      </div>
-
-      <h4 style="margin-top:12px">Admin Entries</h4>
-      <div id="adminList" class="admin-list"></div>
-    </div>
-
-    <section class="card" id="submissionsCard">
-      <h3>User Submissions (Pending Approval)</h3>
-      <div id="submissionsList" class="admin-list"></div>
     </section>
 
-    <section class="card" id="galleryWrap">
-      <h3>Current Rotation (Built-in + Admin)</h3>
-      <div id="galleryList" class="gallery-list"></div>
+    <!-- Admin App -->
+    <section id="adminApp" style="display:none;">
+      <!-- Auth bar -->
+      <section class="card" id="authBar">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <h2 style="margin:0;">Admin Panel</h2>
+          <div class="row" style="gap:8px;">
+            <button id="changePassBtn" type="button">Change Password</button>
+            <button id="logoutBtn" type="button">Logout</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Add/Manage Admin Entries -->
+      <section class="card" id="adminCard">
+        <h3>Add New Submission</h3>
+
+        <div id="bulkBar" class="bulkbar" style="display:none">
+          <div class="row" style="justify-content:space-between;width:100%">
+            <div class="row">
+              <label class="chk"><input type="checkbox" id="selectAllAdmin"> Select all</label>
+              <button id="clearSelBtn" type="button">Clear</button>
+            </div>
+            <div class="row">
+              <button id="bulkListBtn" type="button">List</button>
+              <button id="bulkUnlistBtn" type="button">Unlist</button>
+              <button id="bulkDeleteBtn" type="button">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <form id="addForm" class="row" onsubmit="return false;">
+          <input type="file" id="imageFile" accept="image/*" />
+          <input type="text" id="answerText" placeholder="Answer/caption" />
+          <button type="submit">Add</button>
+        </form>
+
+        <div id="dropZone" class="dropzone" aria-label="Drop images here">
+          <strong>Drag & drop images here</strong>
+          <div class="muted">PNG / JPG / WebP</div>
+        </div>
+
+        <div class="row" style="gap:8px; margin-top:8px;">
+          <button id="exportBtn" type="button">Export Admin Entries</button>
+          <button id="clearBtn" type="button">Clear All</button>
+        </div>
+
+        <h3>Admin Entries</h3>
+        <div id="adminList" class="admin-list"></div>
+      </section>
+
+      <!-- Current Rotation -->
+      <section class="card" id="galleryWrap">
+        <h3>Current Rotation (Built-in + Admin)</h3>
+        <div id="galleryList" class="gallery-list"></div>
+      </section>
+
+      <!-- User submissions (moderation) -->
+      <section class="card" id="submissions">
+        <h3>User Submissions (Pending Approval)</h3>
+        <div id="submissionsList" class="admin-list"></div>
+      </section>
     </section>
   </main>
 
-  <script>window.GOONED_BUILTIN = [{ "src": "assets/placeholder.jpg", "answer": "Placeholder" }];</script>
+  <script>
+    // Admin starts with empty builtin list; all rotation content is admin-approved or admin-added
+    window.GOONED_BUILTIN = [];
+  </script>
+  <script src="auth.js"></script>
+  <script src="admin_gate.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>
