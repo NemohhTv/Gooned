@@ -12,50 +12,7 @@
   // Shuffle playlist at game start
   shuffle(PLAYLIST);
 
-  
-  // --- Injected: remote people.json loader + ETag watch ---
-  const DATA_URL = '/data/people.json';
-  let LAST_ETAG = null;
-  async function loadRemotePeople(force=false){
-    try{
-      const res = await fetch(DATA_URL, {cache:'no-cache'});
-      if(!res.ok) return;
-      const etag = res.headers.get('ETag') || null;
-      if (!force && etag && LAST_ETAG && etag===LAST_ETAG) return;
-      const arr = await res.json();
-      if(Array.isArray(arr) && arr.length){
-        // Map to existing item shape {src, answer}
-        PLAYLIST_ORIG = arr.map(x=>({ src: x.image || x.src, answer: x.name || x.answer })).filter(x=>x.src && x.answer);
-        PLAYLIST = PLAYLIST_ORIG.slice();
-        shuffle(PLAYLIST);
-        round = 0; score = 0; zoom = MAX_ZOOM; revealFull = false; finished = false;
-        if (typeof draw === 'function') draw();
-        if (typeof updateHUD === 'function') updateHUD();
-        if (typeof startGame === 'function') startGame();
-        loadRound(); updateTopbar();
-      }
-      LAST_ETAG = etag || LAST_ETAG;
-    }catch(e){ console.warn('loadRemotePeople failed', e); }
-  }
-  async function pollPeopleUpdates(){
-    try{
-      const r = await fetch(DATA_URL, {method:'HEAD', cache:'no-cache'});
-      const etag = r.headers.get('ETag') || null;
-      if (LAST_ETAG && etag && etag !== LAST_ETAG){
-        await loadRemotePeople(true);
-      }
-      LAST_ETAG = etag || LAST_ETAG;
-    }catch(e){ console.warn('poll updates failed', e); }
-  }
-  document.addEventListener('DOMContentLoaded', ()=>{
-    loadRemotePeople(true);
-    setInterval(pollPeopleUpdates, 60000);
-  });
-  window.addEventListener('storage', (e)=>{
-    if (e.key === 'people_updated') loadRemotePeople(true);
-  });
-  // --- end injected ---
-// Defaults
+  // Defaults
   let maxZoomSteps = 5;   // 5 or 6
   let finalFrac = 0.70;   // 0.70, 0.75, 0.80
   let ROUND_SECONDS = 20; // per-round timer
@@ -137,8 +94,11 @@
   function renderTimer(){ timerEl.textContent = `${timeLeft}s`; }
 
   function loadRound(){
-    // keep current PLAYLIST order; do not reset here
-finished = false; tries = 0; zoom = maxZoomSteps; revealFull = false;
+    // refresh playlist with any new admin entries
+    PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries()); // submissions are NOT auto-included (moderated only)
+    PLAYLIST = PLAYLIST_ORIG.slice();
+
+    finished = false; tries = 0; zoom = maxZoomSteps; revealFull = false;
     if (revealNameEl) revealNameEl.textContent = '';
     messageEl.textContent=''; guessInput.value=''; guessInput.disabled=false;
     document.getElementById('guessButton').disabled=false; nextBtn.disabled=true;
