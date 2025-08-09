@@ -29,6 +29,20 @@ function __queueRebuild() {
   const adminList = document.getElementById('adminList');
   const dropZone = document.getElementById('dropZone');
   const galleryList = document.getElementById('galleryList');
+// === Netlify Blobs uploader ===
+async function uploadToNetlifyBlob(file){
+  const fd = new FormData();
+  fd.append("file", file, file.name || "image");
+  const res = await fetch("/.netlify/functions/upload-image", { method: "POST", body: fd });
+  if (!res.ok){
+    const t = await res.text().catch(()=>'');
+    throw new Error("Upload failed: " + (t || res.status));
+  }
+  const j = await res.json();
+  if (!j || !j.url) throw new Error("Invalid upload response");
+  return j.url;
+}
+
 
   // === Multi-file selection support ===
   imageFile.addEventListener('change', () => {
@@ -36,9 +50,30 @@ function __queueRebuild() {
     // You can type a caption and it will be applied to all files (suffix with index).
   });
 
-  function addFiles(files, caption) {
+  function addFiles(files, caption){
     const imgs = Array.from(files).filter(f => f && f.type && f.type.startsWith('image/'));
-    if (!imgs.length) { alert('No image files selected.'); return; }
+    if (!imgs.length){ alert('No image files selected.'); return; }
+    const useCaption = (caption || '').trim();
+    (async ()=>{
+      try{
+        const entries = readEntries();
+        for (let i=0;i<imgs.length;i++){
+          const f = imgs[i];
+          const url = await uploadToNetlifyBlob(f);
+          const base = useCaption ? (imgs.length>1 ? `${useCaption} ${i+1}` : useCaption)
+                                  : (f.name || 'image').replace(/\.[^.]+$/, '');
+          entries.push({ src: url, answer: base, active: true });
+        }
+        writeEntries(entries);
+        refreshAdminList();
+        renderGallery();
+        alert('Uploaded and added! The game will reshuffle.');
+      }catch(err){
+        console.error(err);
+        alert('Upload failed: ' + err.message);
+      }
+    })();
+  }
 
     const useCaption = (caption || '').trim();
     let i = 0;
