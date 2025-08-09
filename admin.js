@@ -241,6 +241,9 @@ __queueRebuild(); }
   }
 
   // Drag & drop uploads
+  // Prevent default behavior on window to allow drop in Firefox
+  window.addEventListener('dragover', e=> e.preventDefault());
+  window.addEventListener('drop', e=> e.preventDefault());
   ;['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); }));
   ;['dragleave','dragend','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); }));
   dropZone.addEventListener('drop', (e) => {

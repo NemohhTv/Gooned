@@ -1,5 +1,5 @@
 
-(()=>{
+(async()=>{
   // Built-in playlist + any admin-added entries (active only)
   const BUILTIN = window.GOONED_MANIFEST || [];
   const ADMIN_KEY = 'GOONED_CUSTOM';
@@ -9,6 +9,23 @@
   }
   let PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries()); // submissions are NOT auto-included (moderated only)
   let PLAYLIST = PLAYLIST_ORIG.slice();
+
+  // ---- cache busting ----
+  let BUILD_AT = 0;
+  async function loadBuildMeta(){
+    try {
+      const r = await fetch('/build.json', { cache: 'no-store' });
+      const j = await r.json();
+      BUILD_AT = j && j.builtAt ? j.builtAt : Date.now();
+    } catch {
+      BUILD_AT = Date.now();
+    }
+  }
+  function withVersion(url){
+    if (!url) return url;
+    return url + (url.includes('?') ? '&' : '?') + 'v=' + BUILD_AT;
+  }
+
 
   function rebuildPlaylist(){
     PLAYLIST_ORIG = BUILTIN.concat(readAdminEntries());
@@ -112,7 +129,7 @@
     if (!PLAYLIST.length){ PLAYLIST = [{src:'assets/placeholder.jpg', answer:'Placeholder'}]; }
 
     const item = PLAYLIST[round];
-    img = new Image(); img.src = item.src;
+    img = new Image(); img.src = withVersion(item.src);
     img.onload = ()=>{ draw(); updateHUD(); updateTopbar(); startTimer(); };
   }
   function updateTopbar(){ roundInfo.textContent = `Round ${round+1} / ${PLAYLIST.length}`; scoreInfo.textContent = `Score ${score}`; }
@@ -162,7 +179,8 @@
       finalBody.textContent = `You scored ${score} / ${PLAYLIST.length}.`;
       if (typeof finalModal.showModal === 'function') finalModal.showModal();
       return;
-    }
+    }await loadBuildMeta();
+  
     loadRound();
   }
 
@@ -219,7 +237,21 @@ if (correct){
   });
 
   if ('ResizeObserver' in window){ const ro = new ResizeObserver(()=> draw()); ro.observe(canvas); } else { window.addEventListener('resize', draw); }
-  restartBtn?.addEventListener('click', ()=>{ round = 0; score = 0; loadRound(); updateTopbar(); });
+  restartBtn?.addEventListener('click', ()=>{
+    rebuildPlaylist();
+    shuffle(PLAYLIST);
+    round = 0; score = 0; finished = false; revealFull = false;
+    zoom = MAX_ZOOM;
+    loadRound(); updateTopbar(); draw(); updateHUD();
+  });
+
+  shuffleBtn?.addEventListener('click', ()=>{
+    rebuildPlaylist();
+    shuffle(PLAYLIST);
+    round = 0; score = 0; finished = false; revealFull = false;
+    zoom = MAX_ZOOM;
+    loadRound(); updateTopbar(); draw(); updateHUD();
+  });
 
   // Dynamic updates: if admin adds/removes entries in another tab, rebuild & shuffle
   window.addEventListener('storage', (e)=>{
