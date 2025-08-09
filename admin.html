@@ -61,12 +61,12 @@
         </div>
 
         <form id="addForm" class="row" onsubmit="return false;">
-          <input type="file" id="imageFile" accept="image/*" />
+          <input type="file" id="imageFile" accept="image/*"  multiple />
           <input type="text" id="answerText" placeholder="Answer/caption" />
           <button type="submit">Add</button>
         </form>
 
-        <div id="dropZone" class="dropzone" aria-label="Drop images here">
+        <div id="dropZone" class="dropzone" aria-label="Drop images here (optional)" style="opacity:.6;">
           <strong>Drag & drop images here</strong>
           <div class="muted">PNG / JPG / WebP</div>
         </div>

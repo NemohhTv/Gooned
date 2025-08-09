@@ -23,6 +23,7 @@
   }
   function withVersion(url){
     if (!url) return url;
+    if (/^(data:|blob:)/i.test(url)) return url; // don't version data/blob URLs
     return url + (url.includes('?') ? '&' : '?') + 'v=' + BUILD_AT;
   }
 

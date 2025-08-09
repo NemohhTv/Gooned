@@ -30,6 +30,37 @@ function __queueRebuild() {
   const dropZone = document.getElementById('dropZone');
   const galleryList = document.getElementById('galleryList');
 
+  // === Multi-file selection support ===
+  imageFile.addEventListener('change', () => {
+    // If no manual caption, we won't block; per-file base name is used.
+    // You can type a caption and it will be applied to all files (suffix with index).
+  });
+
+  function addFiles(files, caption) {
+    const imgs = Array.from(files).filter(f => f && f.type && f.type.startsWith('image/'));
+    if (!imgs.length) { alert('No image files selected.'); return; }
+
+    const useCaption = (caption || '').trim();
+    let i = 0;
+    const next = () => {
+      const f = imgs[i++];
+      if (!f) { refreshAdminList(); renderGallery(); alert('Added! The game tab will reshuffle.'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const arr = readEntries();
+        const base = (useCaption ? (imgs.length > 1 ? `${useCaption} ${i}` : useCaption) : (f.name || 'image').replace(/\.[^.]+$/, ''));
+        arr.push({ src: reader.result, answer: base, active: true });
+        writeEntries(arr);
+        next();
+      };
+      reader.onerror = () => next();
+      reader.readAsDataURL(f);
+    };
+    next();
+  }
+
+
+
   // Bulk bar
   const bulkBar = document.getElementById('bulkBar');
   const selectAll = document.getElementById('selectAllAdmin');
@@ -276,7 +307,7 @@ if (dropZone) {
     const queue = files.slice();
     const next = () => {
       const f = queue.shift();
-      if (!f) { refreshAdminList(); renderGallery(); alert('Added! Reload the game page to see updates.'); return; }
+      if (!f) { refreshAdminList(); renderGallery(); /* using multi-select now; DnD optional */ return; }
       const reader = new FileReader();
       reader.onload = () => {
         const arr = readEntries();
@@ -295,22 +326,13 @@ if (dropZone) {
   // Add form
   addForm.addEventListener('submit', e => {
     e.preventDefault();
-    const file = imageFile.files[0];
+    const files = imageFile.files;
     const answer = (answerText.value || '').trim();
-    if (!file || !answer){ return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const arr = readEntries();
-      arr.push({ src: reader.result, answer, active: true });
-      writeEntries(arr);
-      imageFile.value = ''; answerText.value = '';
-      refreshAdminList(); renderGallery();
-      alert('Added! Reload the game page to include new entries.');
-    };
-    reader.readAsDataURL(file);
+    if (!files || !files.length){ alert('Please select one or more images.'); return; }
+    addFiles(files, answer);
+    imageFile.value = ''; answerText.value = '';
   });
-
-  exportBtn.addEventListener('click', () => {
+exportBtn.addEventListener('click', () => {
     const data = JSON.stringify(readEntries(), null, 2);
     const blob = new Blob([data], {type:'application/json'});
     const url = URL.createObjectURL(blob);

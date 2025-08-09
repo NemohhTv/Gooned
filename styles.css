@@ -80,3 +80,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   border: 3px dashed #4cafef;
   background-color: rgba(76, 175, 239, 0.15);
 }
+
+/* Multi-file select: ensure inputs are clearly visible */
+#addForm input[type="file"]{ display:block; margin:8px 0; }
+#addForm input[type="text"]{ margin:8px 0; }
