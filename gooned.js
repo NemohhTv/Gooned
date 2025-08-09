@@ -23,9 +23,23 @@
       const etag = res.headers.get('ETag') || null;
       if (!force && etag && LAST_ETAG && etag===LAST_ETAG) return;
       const arr = await res.json();
+      const base = location.pathname.replace(/\/[^/]*$/, '/');
+      const fixed = arr.map(x => {
+        let src = x.image || x.src || '';
+        if (src.startsWith('/')) src = base + src.slice(1);
+        return { src, answer: x.name || x.answer };
+      }).filter(x => x.src && x.answer);
+      PLAYLIST_ORIG = fixed;
+      return;
+
       if(Array.isArray(arr) && arr.length){
         // Map to existing item shape {src, answer}
-        PLAYLIST_ORIG = arr.map(x=>({ src: x.image || x.src, answer: x.name || x.answer })).filter(x=>x.src && x.answer);
+        const base = location.pathname.replace(/\/[^/]*$/, '/');
+        PLAYLIST_ORIG = arr.map(x=>{
+          let src = x.image || x.src || '';
+          if (src.startsWith('/')) src = base + src.slice(1);
+          return { src, answer: x.name || x.answer };
+        }).filter(x=>x.src && x.answer);
         PLAYLIST = PLAYLIST_ORIG.slice();
         shuffle(PLAYLIST);
         round = 0; score = 0; zoom = MAX_ZOOM; revealFull = false; finished = false;
