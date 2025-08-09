@@ -196,30 +196,7 @@ userSubmitForm.addEventListener('submit', (e) => {
       if (typeof finalModal.showModal === 'function') finalModal.showModal();
       return;
     }await loadBuildMeta();
-  // ---- auto-reload when a newer deploy is published ----
-  let __currentBuildAt = 0;
-  async function __initBuildMeta() {
-    await loadBuildMeta();
-    __currentBuildAt = BUILD_AT || 0;
-  }
-  async function __checkForNewBuild() {
-    try {
-      const r = await fetch('/build.json', { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = await r.json();
-      const latest = (j && j.builtAt) ? j.builtAt : 0;
-      if (latest > __currentBuildAt) {
-        // New deploy detected — reload to fetch fresh assets
-        location.reload();
-      }
-    } catch {}
-  }
-  // Kick off once and then poll every 20s
-  await __initBuildMeta();
-  setInterval(__checkForNewBuild, 20000);
-
-  
-    loadRound();
+  loadRound();
   }
 
   // Events

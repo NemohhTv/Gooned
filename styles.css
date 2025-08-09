@@ -86,3 +86,18 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 #addForm input[type="text"]{ margin:8px 0; }
 
 #imageUrls{ font-family: ui-monospace, monospace; }
+
+/* --- Publishing spinner/status --- */
+#publishStatus { min-height: 1.25em; }
+#publishStatus .spin {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: text-bottom; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Thumb previews */
+#urlPreview img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
