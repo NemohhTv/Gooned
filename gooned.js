@@ -16,7 +16,7 @@
   // --- Injected: remote people.json loader + ETag watch ---
   const DATA_URL = '/data/people.json';
   let LAST_ETAG = null;
-  async function loadRemotePeople(force=false, doShuffle=false){
+  async function loadRemotePeople(force=false){
     try{
       const res = await fetch(DATA_URL, {cache:'no-cache'});
       if(!res.ok) return;
@@ -42,13 +42,13 @@
       const r = await fetch(DATA_URL, {method:'HEAD', cache:'no-cache'});
       const etag = r.headers.get('ETag') || null;
       if (LAST_ETAG && etag && etag !== LAST_ETAG){
-        await loadRemotePeople(true, true);
+        await loadRemotePeople(true);
       }
       LAST_ETAG = etag || LAST_ETAG;
     }catch(e){ console.warn('poll updates failed', e); }
   }
   document.addEventListener('DOMContentLoaded', ()=>{
-    loadRemotePeople(true, true);
+    loadRemotePeople(true, false);
     setInterval(pollPeopleUpdates, 60000);
   });
   window.addEventListener('storage', (e)=>{
@@ -127,26 +127,14 @@
   function shuffle(array){ for (let i=array.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [array[i],array[j]]=[array[j],array[i]]; } }
 
   function startTimer(){
-    stopTimer();
-    if (ROUND_SECONDS == null) { // infinite mode
-      timeLeft = Infinity;
-      renderTimer();
-      return; // no interval
-    }
-    timeLeft = ROUND_SECONDS; renderTimer();
+    stopTimer(); timeLeft = ROUND_SECONDS; renderTimer();
     timerId = setInterval(()=>{
       timeLeft--; renderTimer();
       if (timeLeft <= 0){ stopTimer(); if (!finished){ zoom = 1; draw(); updateHUD(); endImage(false, '(Time up)'); } }
     },1000);
   }
   function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } }
-  function renderTimer(){
-    if (ROUND_SECONDS == null || !isFinite(timeLeft)) {
-      timerEl.textContent = '∞';
-    } else {
-      timerEl.textContent = `${timeLeft}s`;
-    }
-  }
+  function renderTimer(){ timerEl.textContent = `${timeLeft}s`; }
 
   function loadRound(){
     // keep current PLAYLIST order; do not reset here
@@ -271,126 +259,4 @@ if (correct){
 })();
 
 
-/* === GOONED: Auto-load, Shuffle, and Live-Update Patch (injected) === */
-(function(){
-  const DATA_URL = '/data/people.json';
-  let LAST_ETAG = null;
-  let PEOPLE = [];
-  let ORDER = [];
-  let CURRENT_INDEX = 0;
 
-  // Expose for other scripts
-  window.GOONED_STATE = { get PEOPLE(){return PEOPLE}, get ORDER(){return ORDER}, get CURRENT_INDEX(){return CURRENT_INDEX} };
-
-  function secureRandomInt(maxExclusive) {
-    const arr = new Uint32Array(1);
-    crypto.getRandomValues(arr);
-    return Math.floor((arr[0] / 0xFFFFFFFF) * maxExclusive);
-  }
-  function shuffleIndices(n) {
-    ORDER = Array.from({length:n}, (_,i)=>i);
-    for (let i = ORDER.length - 1; i > 0; i--) {
-      const j = secureRandomInt(i + 1);
-      [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]];
-    }
-  }
-
-  function currentPerson() {
-    const idx = ORDER[CURRENT_INDEX] ?? 0;
-    return PEOPLE[idx];
-  }
-
-  async function loadPeople({force}={force:false}) {
-    const res = await fetch(DATA_URL, {cache:'no-cache'});
-    if (!res.ok) { console.error('Failed to load people.json'); return; }
-    const etag = res.headers.get('ETag') || null;
-    const shouldApply = force || etag !== LAST_ETAG;
-    const data = await res.json();
-    if (!Array.isArray(data)) { console.error('people.json not array'); return; }
-    if (shouldApply) {
-      PEOPLE = data.map(p => ({ name: p.name, image: p.image, answer: p.name, src: p.image }));
-      shuffleIndices(PEOPLE.length);
-      CURRENT_INDEX = 0;
-      LAST_ETAG = etag || LAST_ETAG;
-      // If a global render function exists, try to start/restart the game
-      if (typeof window.renderGameFromPeople === 'function') {
-        window.renderGameFromPeople(PEOPLE, ORDER, CURRENT_INDEX);
-      } else if (typeof window.renderRound === 'function') {
-        window.renderRound(CURRENT_INDEX, currentPerson());
-      } else if (typeof window.initGame === 'function') {
-        window.initGame(PEOPLE);
-      }
-    }
-  }
-
-  function nextRound() {
-    CURRENT_INDEX++;
-    if (CURRENT_INDEX >= ORDER.length) {
-      shuffleAndRestart();
-      return;
-    }
-    if (typeof window.renderRound === 'function') {
-      window.renderRound(CURRENT_INDEX, currentPerson());
-    } else if (typeof window.onNextRound === 'function') {
-      window.onNextRound(CURRENT_INDEX, currentPerson());
-    }
-  }
-
-  function shuffleAndRestart() {
-    shuffleIndices(PEOPLE.length);
-    CURRENT_INDEX = 0;
-    if (typeof window.renderGameFromPeople === 'function') {
-      window.renderGameFromPeople(PEOPLE, ORDER, CURRENT_INDEX);
-    } else if (typeof window.renderRound === 'function') {
-      window.renderRound(CURRENT_INDEX, currentPerson());
-    } else if (typeof window.initGame === 'function') {
-      window.initGame(PEOPLE);
-    }
-  }
-
-  // Expose helpers
-  window.goonedLoadPeople = loadPeople;
-  window.goonedNextRound = nextRound;
-  window.goonedShuffleAndRestart = shuffleAndRestart;
-  window.goonedCurrentPerson = currentPerson;
-
-  // Poll for backend updates
-  async function pollPeopleUpdates(){
-    try {
-      const head = await fetch(DATA_URL, {method:'HEAD', cache:'no-cache'});
-      const etag = head.headers.get('ETag') || null;
-      if (LAST_ETAG && etag && etag !== LAST_ETAG) {
-        await loadPeople({force:true});
-        if (typeof window.showToast === 'function') window.showToast('New entries added — shuffled!');
-      }
-      LAST_ETAG = etag || LAST_ETAG;
-    } catch(e){ console.warn('poll error', e); }
-  }
-
-  // Listen for admin localStorage signal for instant refresh
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'people_updated') {
-      loadPeople({force:true});
-      if (typeof window.showToast === 'function') window.showToast('New entry published — shuffled!');
-    }
-  });
-
-  // Shuffle button hookup if present
-  function hookupShuffleButton(){
-    const btn = document.getElementById('shuffleBtn');
-    if (btn && !btn.__gooned) {
-      btn.__gooned = true;
-      btn.addEventListener('click', () => shuffleAndRestart());
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    hookupShuffleButton();
-    loadPeople({force:true});
-    setInterval(pollPeopleUpdates, 60000);
-  });
-
-  // Optional: if your original code calls nextRound internally, you can replace its callsites with window.goonedNextRound()
-  // or we can try to monkey-patch a known function name if discovered.
-})();
-/* === END GOONED PATCH === */
