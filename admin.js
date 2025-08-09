@@ -1,191 +1,198 @@
-/* Local-only Admin (Imgur URLs, stored in localStorage) */
-(function(){
-  'use strict';
+(()=>{
+  const ADMIN_KEY = 'GOONED_CUSTOM';
+  const SUBMIT_KEY = 'GOONED_SUBMISSIONS';
+  const BUILTIN = Array.isArray(window.GOONED_BUILTIN) ? window.GOONED_BUILTIN : [];
 
-  const KEY = 'GOONED_CUSTOM';
-  const gallery = document.getElementById('gallery');
-  const imageUrls = document.getElementById('imageUrls');
-  const answerText = document.getElementById('answerText');
-  const addForm = document.getElementById('addForm');
-  const clearBtn = document.getElementById('clearBtn');
-  const counts = document.getElementById('counts');
-  const urlValidation = document.getElementById('urlValidation');
-  const urlPreview = document.getElementById('urlPreview');
-
-  function readEntries(){
-    try {
-      const raw = localStorage.getItem(KEY);
-      const parsed = raw ? JSON.parse(raw) : { entries: [], version: 0 };
-      return Array.isArray(parsed.entries) ? parsed.entries : [];
-    } catch { return []; }
+  // Helper Storage
+  function readJSON(key, fallback){
+    try { return JSON.parse(localStorage.getItem(key)||'') ?? fallback; }
+    catch { return fallback; }
   }
-  function writeEntries(arr){
-    const payload = { entries: arr, version: Date.now() };
-    localStorage.setItem(KEY, JSON.stringify(payload));
+  function writeJSON(key, val){
+    localStorage.setItem(key, JSON.stringify(val));
   }
 
-  // Imgur helpers + validation
-  function classifyImgurLine(line){
-    const raw = (line||'').trim();
-    if (!raw) return { valid:false, reason:'empty' };
-    if (/imgur\.com\/(a|gallery)\//i.test(raw)) return { valid:false, reason:'album_or_gallery' };
-    if (/^https?:\/\/i\.imgur\.com\/[A-Za-z0-9]+\.(jpg|jpeg|png|webp|gif)$/i.test(raw)) return { valid:true, url: raw };
-    let m = raw.match(/^https?:\/\/imgur\.com\/([A-Za-z0-9]+)(?:\.(jpg|jpeg|png|webp|gif))?$/i);
-    if (m) return { valid:true, url: `https://i.imgur.com/${m[1]}.${(m[2]||'jpg').toLowerCase()}` };
-    m = raw.match(/^([A-Za-z0-9]+)$/);
-    if (m) return { valid:true, url: `https://i.imgur.com/${m[1]}.jpg` };
-    if (/^https?:\/\//i.test(raw)) return { valid:false, reason:'non_imgur_or_not_direct' };
-    return { valid:false, reason:'unrecognized' };
-  }
-  function validateImgurList(multiline){
-    const lines = (multiline||'').split(/\r?\n/).map(s=>s.trim());
-    const valid = []; const invalid = [];
-    lines.forEach((ln, idx)=>{
-      if (!ln) return;
-      const res = classifyImgurLine(ln);
-      if (res.valid) valid.push({ line: idx+1, url: res.url, input: ln });
-      else invalid.push({ line: idx+1, input: ln, reason: res.reason });
-    });
-    return { valid, invalid };
-  }
-  function renderValidation(){
-    if (!urlValidation) return;
-    const { valid, invalid } = validateImgurList(imageUrls.value);
-    const msgs = [];
-    if (valid.length) msgs.push(`<div>✅ Valid: <strong>${valid.length}</strong></div>`);
-    if (invalid.length){
-      const list = invalid.slice(0,6).map(it=>{
-        let reason = it.reason;
-        if (reason==='album_or_gallery') reason = 'album/gallery not supported';
-        if (reason==='non_imgur_or_not_direct') reason = 'not a direct Imgur URL';
-        if (reason==='unrecognized') reason = 'unrecognized format';
-        if (reason==='empty') reason = 'empty line';
-        return `<li>Line ${it.line}: <code>${it.input.replace(/</g,'&lt;')}</code> — ${reason}</li>`;
-      }).join('');
-      msgs.push(`<div>⚠️ Invalid: <strong>${invalid.length}</strong></div><ul style="margin:.25em 0 0 .75em">${list}${invalid.length>6?'<li>…</li>':''}</ul>`);
-    }
-    urlValidation.innerHTML = msgs.join('');
-    renderPreview();
-  }
-  function renderPreview(){
-    if (!urlPreview) return;
-    const { valid } = validateImgurList(imageUrls.value);
-    const urls = valid.slice(0,3).map(v=>v.url);
-    urlPreview.innerHTML = urls.map(u=>`<img src="${u}" alt="preview" width="56" height="56" loading="lazy">`).join('');
+  // Elements (fallback-create lightweight URL form if markup is missing)
+  const adminApp = document.getElementById('adminApp') || document.body;
+  let addForm = document.getElementById('addForm');
+  let imageUrl = document.getElementById('imageUrl');
+  let answerText = document.getElementById('answerText');
+  let adminList = document.getElementById('adminList');
+  let galleryList = document.getElementById('galleryList');
+  let exportBtn = document.getElementById('exportBtn');
+  let clearBtn = document.getElementById('clearBtn');
+
+  // If no form exists (because the HTML was redacted), create a minimal one that matches the "same look"
+  if (!addForm){
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header"><h2>Add by URL</h2></div>
+      <div class="card-body">
+        <form id="addForm" class="row" autocomplete="off">
+          <label style="flex:2;display:flex;flex-direction:column;gap:6px">
+            <span>Image URL (Imgur, etc.)</span>
+            <input id="imageUrl" type="url" placeholder="https://i.imgur.com/xyz123.jpg" required />
+          </label>
+          <label style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <span>Answer (Name)</span>
+            <input id="answerText" type="text" placeholder="Person / Filename" required />
+          </label>
+          <button id="addBtn" type="submit">Add</button>
+        </form>
+        <p class="help">Tip: Use direct image URLs (ending with .jpg, .png, .webp). Imgur: open image → right‑click → "Copy image address".</p>
+      </div>
+    `;
+    adminApp.prepend(card);
+    addForm = card.querySelector('#addForm');
+    imageUrl = card.querySelector('#imageUrl');
+    answerText = card.querySelector('#answerText');
   }
 
-  // Add by URLs
-  function addByUrls(multiline, caption){
-    const { valid } = validateImgurList(multiline);
-    if (!valid.length){ alert('No valid Imgur links detected.'); return; }
-    const arr = readEntries();
-    const useCaption = (caption||'').trim();
-    valid.forEach((v, i)=>{
-      const base = useCaption ? (valid.length>1 ? `${useCaption} ${i+1}` : useCaption) : v.url.split('/').pop().split('.')[0];
-      arr.push({ src: v.url, answer: base, active: true });
-    });
-    writeEntries(arr);
-    imageUrls.value = ''; answerText.value = '';
-    renderValidation();
-    renderGallery();
+  // Ensure lists exist
+  if (!adminList){
+    adminList = document.createElement('div');
+    adminList.id = 'adminList';
+    adminList.className = 'admin-list';
+    adminApp.append(adminList);
+  }
+  if (!galleryList){
+    galleryList = document.createElement('div');
+    galleryList.id = 'galleryList';
+    galleryList.className = 'admin-list';
+    adminApp.append(galleryList);
   }
 
-  // Inline caption editor
-  function makeEditableCaption(el, getIndex){
-    if (!el) return;
-    el.contentEditable = 'true'; el.spellcheck = false;
-    el.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
-    el.addEventListener('blur', ()=>{
-      const idx = typeof getIndex==='function' ? getIndex() : -1;
-      const arr = readEntries();
-      if (idx<0 || idx>=arr.length) return;
-      const next = (el.textContent||'').trim();
-      if (next && next !== arr[idx].answer){
-        arr[idx].answer = next;
-        writeEntries(arr);
-        renderCounts();
-      }
-    });
+  // Model
+  function getAll(){
+    const active = readJSON(ADMIN_KEY, []).filter(e => e && (e.active !== false));
+    return BUILTIN.concat(active);
   }
 
-  function renderCounts(){
-    const n = readEntries().length;
-    if (counts) counts.textContent = n + (n===1 ? ' item' : ' items');
-  }
-
-  // Gallery render
-  function renderGallery(){
-    const arr = readEntries();
-    renderCounts();
-    if (!gallery) return;
-    gallery.innerHTML = '';
-    arr.forEach((p, idx)=>{
-      const div = document.createElement('div');
-      div.className = 'item';
-      div.innerHTML = `
-        <img class="thumb" alt="image ${idx+1}" loading="lazy" src="${p.src}">
-        <div class="meta">
-          <div class="caption editable" tabindex="0">${(p.answer||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
-          <div class="controls">
-            <label class="help"><input type="checkbox" ${p.active?'checked':''} /> Active</label>
-            <div class="row" style="gap:6px">
-              <button type="button" data-act="up">↑</button>
-              <button type="button" data-act="down">↓</button>
-              <button type="button" data-act="delete">Delete</button>
-            </div>
-          </div>
+  function renderAdminList(){
+    const entries = readJSON(ADMIN_KEY, []);
+    adminList.innerHTML = '';
+    entries.forEach((e, idx)=>{
+      const item = document.createElement('div');
+      item.className = 'admin-item';
+      item.innerHTML = `
+        <img src="${e.src || e.url || ''}" alt="" onerror="this.src='assets/placeholder.jpg'"/>
+        <div class="row" style="margin-top:6px;gap:6px">
+          <input data-answer="${idx}" type="text" value="${e.answer || ''}" placeholder="Answer" style="flex:1"/>
+        </div>
+        <div class="row" style="margin-top:6px;gap:6px">
+          <button data-toggle="${idx}" class="small">${e.active === false ? 'List' : 'Unlist'}</button>
+          <button data-delete="${idx}" class="small danger">Delete</button>
         </div>
       `;
-      const cap = div.querySelector('.caption');
-      makeEditableCaption(cap, ()=> idx);
+      adminList.append(item);
+    });
 
-      // Active toggle
-      div.querySelector('input[type=checkbox]').addEventListener('change', (e)=>{
-        const arr2 = readEntries();
-        if (!arr2[idx]) return;
-        arr2[idx].active = !!e.target.checked;
-        writeEntries(arr2);
+    // Wire events
+    adminList.querySelectorAll('input[type="text"][data-answer]').forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        const i = +inp.dataset.answer;
+        const list = readJSON(ADMIN_KEY, []);
+        if (!list[i]) return;
+        list[i].answer = inp.value.trim();
+        writeJSON(ADMIN_KEY, list);
+        // trigger storage for other tabs (game) by touching key
+        localStorage.setItem('__ping__', String(Date.now()));
       });
-
-      // Reorder/Delete
-      div.querySelectorAll('button[data-act]').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const act = btn.getAttribute('data-act');
-          const arr2 = readEntries();
-          if (act==='delete'){
-            arr2.splice(idx,1);
-          } else if (act==='up' && idx>0){
-            [arr2[idx-1], arr2[idx]] = [arr2[idx], arr2[idx-1]];
-          } else if (act==='down' && idx < arr2.length-1){
-            [arr2[idx+1], arr2[idx]] = [arr2[idx], arr2[idx+1]];
-          }
-          writeEntries(arr2);
-          renderGallery();
-        });
+    });
+    adminList.querySelectorAll('button[data-toggle]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = +btn.dataset.toggle;
+        const list = readJSON(ADMIN_KEY, []);
+        if (!list[i]) return;
+        list[i].active = !(list[i].active !== false); // toggle
+        writeJSON(ADMIN_KEY, list);
+        renderAdminList();
+        localStorage.setItem('__ping__', String(Date.now()));
       });
-
-      gallery.appendChild(div);
+    });
+    adminList.querySelectorAll('button[data-delete]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = +btn.dataset.delete;
+        const list = readJSON(ADMIN_KEY, []);
+        list.splice(i,1);
+        writeJSON(ADMIN_KEY, list);
+        renderAdminList();
+        localStorage.setItem('__ping__', String(Date.now()));
+      });
     });
   }
 
-  // Wire form
-  addForm.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    addByUrls(imageUrls.value, answerText.value);
-  });
-  clearBtn.addEventListener('click', ()=>{
-    if (!confirm('Remove ALL entries?')) return;
-    writeEntries([]);
-    renderGallery();
-  });
-
-  // Init
-  if (imageUrls){
-    imageUrls.addEventListener('input', renderValidation);
-    if (imageUrls.value) renderValidation();
+  function renderGallery(){
+    const all = getAll();
+    galleryList.innerHTML = '';
+    all.forEach(e=>{
+      const card = document.createElement('div');
+      card.className = 'admin-item';
+      card.innerHTML = `
+        <img src="${e.src || e.url || ''}" alt="" onerror="this.src='assets/placeholder.jpg'"/>
+        <div style="font-weight:700;margin-top:6px">${e.answer || 'Unnamed'}</div>
+      `;
+      galleryList.append(card);
+    });
   }
-  renderGallery();
 
-  // Let the game tab rebuild + shuffle immediately via storage event
-  // (nothing to do here; writing localStorage is enough across same-origin tabs)
+  function addUrlEntry(url, name){
+    const list = readJSON(ADMIN_KEY, []);
+    // Normalize to {src, name, active:true}
+    const entry = { src: url.trim(), answer: (name||'').trim(), active: true };
+    list.push(entry);
+    writeJSON(ADMIN_KEY, list);
+    // Auto update UI
+    renderAdminList();
+    renderGallery();
+    // Force the game tab to rebuild & shuffle via storage listener
+    localStorage.setItem('GOONED_CUSTOM', JSON.stringify(list));
+  }
+
+  // Submit handler
+  addForm.addEventListener('submit', (ev)=>{
+    ev.preventDefault();
+    const url = imageUrl.value.trim();
+    const name = answerText.value.trim();
+    if (!url || !/^https?:\/\/.+\.(png|jpe?g|webp|gif)$/i.test(url)){
+      alert('Please paste a direct image URL ending in .png, .jpg, .jpeg, .webp, or .gif');
+      return;
+    }
+    if (!name){
+      alert('Please enter the answer/name.');
+      return;
+    }
+    // Show quick "publishing" spinner feedback
+    const btn = addForm.querySelector('button[type="submit"]');
+    const prev = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Publishing…';
+    // Fake small delay for UX
+    setTimeout(()=>{
+      addUrlEntry(url, name);
+      btn.disabled = false; btn.textContent = prev;
+      imageUrl.value = ''; answerText.value = '';
+    }, 250);
+  });
+
+  // Export / Clear (if present)
+  exportBtn?.addEventListener('click', ()=>{
+    const list = readJSON(ADMIN_KEY, []);
+    const blob = new Blob([JSON.stringify(list, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'gooned_admin_entries.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  });
+  clearBtn?.addEventListener('click', ()=>{
+    if (!confirm('Clear all admin entries?')) return;
+    writeJSON(ADMIN_KEY, []);
+    renderAdminList(); renderGallery();
+    localStorage.setItem('GOONED_CUSTOM', JSON.stringify([]));
+  });
+
+  // Initial paint
+  renderAdminList();
+  renderGallery();
 })();
