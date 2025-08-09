@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GOONED — Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="index.html" class="logo-link"><img src="logo.svg" class="logo" alt="GOONED"/></a>
+    <a class="admin-link" href="admin.html">Admin</a>
+  </header>
+
+  <main class="app">
+    <div class="card" id="adminCard">
+      <h3>Add New Submission</h3>
+
+      <div id="bulkBar" class="bulkbar" style="display:none">
+        <div class="row" style="justify-content:space-between;width:100%">
+          <div class="row">
+            <label class="chk"><input type="checkbox" id="selectAllAdmin"> Select all</label>
+            <button id="clearSelBtn" type="button">Clear</button>
+          </div>
+          <div class="row">
+            <button id="bulkListBtn" type="button">List</button>
+            <button id="bulkUnlistBtn" type="button">Unlist</button>
+            <button id="bulkDeleteBtn" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <form class="settings-grid" id="addForm">
+        <label>Image
+          <input id="imageFile" type="file" accept="image/*" required />
+        </label>
+        <label>Winning answer
+          <input id="answerText" type="text" placeholder="e.g., Emma Watson" required />
+        </label>
+        <button type="submit">Add</button>
+      </form>
+
+      <div id="dropZone" class="dropzone" aria-label="Drop images here">
+        <strong>Drag & drop images here</strong>
+        <span>(filenames will be used as initial names; you can rename by double‑clicking)</span>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="exportBtn">Export All (JSON)</button>
+        <button id="clearBtn">Clear Admin Entries</button>
+      </div>
+
+      <h4 style="margin-top:12px">Admin Entries</h4>
+      <div id="adminList" class="admin-list"></div>
+    </div>
+
+    <section class="card" id="submissionsCard">
+      <h3>User Submissions (Pending Approval)</h3>
+      <div id="submissionsList" class="admin-list"></div>
+    </section>
+
+    <section class="card" id="galleryWrap">
+      <h3>Current Rotation (Built-in + Admin)</h3>
+      <div id="galleryList" class="gallery-list"></div>
+    </section>
+  </main>
+
+  <script>window.GOONED_BUILTIN = [{ "src": "assets/placeholder.jpg", "answer": "Placeholder" }];</script>
+  <script src="admin.js"></script>
+</body>
+</html>
