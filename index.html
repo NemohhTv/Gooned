@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GOONED — Image Guessing</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="index.html" class="logo-link"><img src="logo.svg" class="logo" alt="GOONED"/></a>
+    <a class="admin-link" href="admin.html">Admin</a>
+  </header>
+
+  <main class="app">
+    <div class="game card">
+      <div class="topbar">
+        <div id="roundInfo" class="badge">Round 1 / 1</div>
+        <div class="badge-group">
+          <div id="scoreInfo" class="badge">Score 0</div>
+          <div id="timer" class="badge timer">20s</div>
+        </div>
+      </div>
+
+      <canvas id="goonleCanvas" width="960" height="540" aria-label="Image"></canvas>
+      <div id="revealName" class="reveal-name" aria-live="polite"></div>
+
+      <form id="guessForm" autocomplete="off" class="row">
+        <input id="guessInput" placeholder="Your guess..."  />
+        <button id="guessButton" type="submit">Guess</button>
+      </form>
+
+      <div class="hud">
+        <span id="status">Step 5/5</span>
+        <span id="tries">Tries: 0</span>
+      </div>
+
+      <div id="message" role="status" aria-live="polite"></div>
+
+      <div class="actions row">
+        <button id="revealBtn" title="Reveal the image">Reveal</button>
+        <button id="nextBtn" title="Next round" disabled>Next</button>
+        <button id="shuffleBtn" title="Shuffle the order">Shuffle</button>
+        <button id="shareBtn" title="Copy your score">Share</button>
+      </div>
+    </div>
+
+    <section class="settings card">
+      <h3>Settings</h3>
+      <div class="settings-grid">
+        <label>Steps per image:
+          <select id="stepsSelect">
+            <option value="5" selected>5</option>
+            <option value="6">6</option>
+          </select>
+        </label>
+        <label>Final crop (Step 1):
+          <select id="finalCropSelect">
+            <option value="0.70" selected>70%</option>
+            <option value="0.75">75%</option>
+            <option value="0.80">80%</option>
+          </select>
+        </label>
+        <label>Round timer:
+          <select id="timerSelect">
+            <option value="15">15s</option>
+            <option value="20" selected>20s</option>
+            <option value="30">30s</option>
+          </select>
+        </label>
+        <button id="applyBtn" type="button">Apply</button>
+      </div>
+      <p class="help">Drag & drop your images in <strong>Admin</strong>, or use the public submission form below.</p>
+    </section>
+
+    <section class="card" id="userSubmitCard">
+      <h3>Submit an Image</h3>
+      <form class="settings-grid" id="userSubmitForm">
+        <label>Image
+          <input id="userImageFile" type="file" accept="image/*" required />
+        </label>
+        <label>Name (winning answer)
+          <input id="userAnswerText" type="text" placeholder="e.g., Emma Watson" required />
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+      <p class="help">Your submission will be sent to the Admin queue for approval before it appears in the live game.</p>
+      <div id="userSubmitMsg" class="help"></div>
+    </section>
+
+    <footer>
+      <small>GOONED — Center-zoom, no-stretch. Comic-pop vibes.</small>
+    </footer>
+  </main>
+
+  <dialog id="resultModal" class="card">
+    <h2 id="modalTitle">You guessed it!</h2>
+    <p id="modalBody"></p>
+    <form method="dialog" class="row">
+      <button>Close</button>
+    </form>
+  </dialog>
+
+  <dialog id="finalModal" class="card">
+    <h2>All done!</h2>
+    <p id="finalBody">You scored 0.</p>
+    <form method="dialog" class="row">
+      <button id="restartBtn" value="default">Play Again</button>
+    </form>
+  </dialog>
+
+  <script>
+    // Built-in is empty (placeholder only so canvas shows something if admin list is empty)
+    window.GOONED_MANIFEST = []; // starter rotation empty — add via Admin
+  </script>
+  <script src="gooned.js"></script>
+</body>
+</html>
